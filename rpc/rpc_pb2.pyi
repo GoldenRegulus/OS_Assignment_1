@@ -55,18 +55,14 @@ class GamePositionStatusReply(_message.Message):
     def __init__(self, position: _Optional[_Union[GamePosition, _Mapping]] = ..., ready: _Optional[_Union[GamePositionReady, _Mapping]] = ...) -> None: ...
 
 class GameSoldierStatus(_message.Message):
-    __slots__ = ["soldier_id"]
-    SOLDIER_ID_FIELD_NUMBER: _ClassVar[int]
-    soldier_id: int
-    def __init__(self, soldier_id: _Optional[int] = ...) -> None: ...
+    __slots__ = []
+    def __init__(self) -> None: ...
 
 class GameSoldierWasHit(_message.Message):
-    __slots__ = ["soldier_id", "was_hit"]
-    SOLDIER_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["was_hit"]
     WAS_HIT_FIELD_NUMBER: _ClassVar[int]
-    soldier_id: int
     was_hit: bool
-    def __init__(self, soldier_id: _Optional[int] = ..., was_hit: bool = ...) -> None: ...
+    def __init__(self, was_hit: bool = ...) -> None: ...
 
 class Empty(_message.Message):
     __slots__ = []

@@ -44,13 +44,10 @@ message GamePositionStatusReply {
     }
 }
 
-message GameSoldierStatus {
-    int32 soldier_id = 1;
-}
+message GameSoldierStatus {}
 
 message GameSoldierWasHit {
-    int32 soldier_id = 1;
-    bool was_hit = 2;
+    bool was_hit = 1;
 }
 
 message Empty {}
