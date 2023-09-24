@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+service Bootstrap {
+    rpc Initialize (BootstrapInit) returns (BootstrapInitReply);
+    rpc GameOver (Empty) returns (Empty);
+}
+
+service Game {
+    rpc MissileApproaching (GameMissileApproaching) returns (GamePosition);
+    rpc PositionStatus (GamePositionStatus) returns (GamePositionStatusReply);
+    rpc Status (GameSoldierStatus) returns (GameSoldierWasHit);
+}
+
+message BootstrapInit {
+    string ip = 1;
+    int32 port = 2;
+}
+
+message BootstrapInitReply {
+    int32 board_size = 1;
+}
+
+message GamePosition {
+    int32 x = 1;
+    int32 y = 2;
+}
+
+message GameMissileApproaching {
+    GamePosition position = 1;
+    int32 time_to_approach = 3;
+    int32 missile_type = 4;
+}
+
+message GamePositionStatus {
+    bool is_occupied = 1;
+}
+
+message GamePositionReady {}
+
+message GamePositionStatusReply {
+    oneof status {
+        GamePosition position = 1;
+        GamePositionReady ready = 2;
+    }
+}
+
+message GameSoldierStatus {
+    int32 soldier_id = 1;
+}
+
+message GameSoldierWasHit {
+    int32 soldier_id = 1;
+    bool was_hit = 2;
+}
+
+message Empty {}
