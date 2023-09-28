@@ -89,6 +89,7 @@ def generate_shelter_locations(
 
 
 class Soldier:
+    # stops server
     def stop_server(self):
         self.server.stop(10)
 
@@ -100,6 +101,12 @@ class Soldier:
             Console().clear()
             print("Soldier Initialized")
 
+    """
+    Creates new soldier with given speed, ipv4 address and port.
+    Sets up commander arguments in case it will be switched later
+    Initializes its identity with the server
+    Runs the game loop
+    """
     def __init__(self, s, ip, port) -> None:
         self.s = s
         self.host_ip = ip
@@ -159,12 +166,21 @@ class Soldier:
             self.is_hit = True
             return GamePositionStatusReply(ready=GamePositionReady())
 
+        """
+        Checks if soldier was hit and informs commander of same.
+        If it is hit, it stops the gRPC server and quits.
+        """
         def Status(self, request, context):
             reply = GameSoldierWasHit(was_hit=self.is_hit)
             if self.is_hit:
                 self.outer_self.stop_server()
             return reply
 
+        """
+        Initiates transfer of control of program from Soldier to Commander
+        Prepares arguments for Commander
+        Stops gRPC server and Client instance.
+        """
         def TransferCommander(self, request, context):
             self.outer_self.commander_args["M"] = request.M
             self.outer_self.commander_args["ct"] = request.ct
@@ -192,6 +208,11 @@ class Soldier:
 
 
 class Commander:
+    """
+    Initiates a new Commander instance from the Soldier's parameters upon transfer of control
+    Continues game logic from same position in game loop as the previous commander.
+    Informs user of game outcome.
+    """
     @classmethod
     def resume(cls, N, s, pos, M, ct, t, T, m_pos, m_type, soldiers):
         instance = cls(*[i for i in range(6)], skip_init=True)
@@ -217,6 +238,13 @@ class Commander:
         else:
             instance.console.print("[#ff5566]Game ended. The battle is lost.[/#ff5566]")
 
+    """
+    Initiates a new Commander instance.
+    Optionally skips all initialization if commander is to be resumed instead.
+    Waits for soldiers to connect and sends board size to them
+    Begins game loop.
+    Informs user of game outcome.
+    """
     def __init__(self, N, M, t, T, s, port, skip_init=False) -> None:
         if not skip_init:
             self.N = N
@@ -269,7 +297,15 @@ class Commander:
             self.print_board()
             sleep(1)
 
-    # print the NxN board, with redzone, missile position, soldier location and commander location
+    """
+    Prints the current state of the game board including:
+    - Soldier positions
+    - Commander position
+    - Missile position
+    - Missile radius
+    - Elapsed time and Total time
+    - Number of remaining soldiers on the board
+    """
     def print_board(self):
         self.console.clear()
         redzone_area = [
@@ -346,6 +382,11 @@ class Commander:
             return False
         return True
 
+    """
+    Handles commander movement and transfer logic.
+    If the commander is in the red zone, it moves to possible shelter locations in order, checking if the new position is free.
+    If the commander determines it will be killed, it selects the next commander from the available soldiers and transfers to it.
+    """
     def check_and_transfer_self(self):
         possible_locations = generate_shelter_locations(
             self.N,
@@ -426,6 +467,10 @@ class Commander:
                         break
                     pos = reply.position
 
+    """
+    Checks status of a given soldier.
+    If the soldier is hit, it is considered dead and is evicted from the list of available soldiers.
+    """
     def status(self, soldier_id):
         with grpc.insecure_channel(f"{self.soldiers[soldier_id][0]}:{self.soldiers[soldier_id][1]}") as channel:
             stub = rpc.GameStub(channel)
@@ -433,11 +478,13 @@ class Commander:
             if reply.was_hit:
                 _ = self.soldiers.pop(soldier_id)
 
+    # Checks status of all available soldiers
     def status_all(self):
         keys = [i for i in self.soldiers.keys()]
         for soldier_id in keys:
             self.status(soldier_id)
 
+    # Stops the server
     def stop_server(self):
         self.server.stop(10)
 
@@ -506,9 +553,10 @@ else:  # commander
     if args["t"] > args["T"]:
         raise ValueError("t cannot be greater than T")
 
-if "ip" in args:
+# Initializes soldier or commander based on command line arguments
+if "ip" in args:  # Soldier
     s = Soldier(args["s"], args["ip"], args["port"])
-    if s.will_be_commander:
+    if s.will_be_commander:  # create new Commander if Soldier is to be promoted
         try:
             s = Commander.resume(
                 ct=s.commander_args["ct"],
@@ -524,7 +572,7 @@ if "ip" in args:
             )
         except Exception:
             pass
-else:
+else:  # Commander
     try:
         Commander(args["N"], args["M"], args["t"], args["T"], args["s"], args["port"])
     except Exception:
