@@ -43,9 +43,62 @@ def generate_random_pos(N):
     return (x, y)
 
 
+def generate_shelter_locations(
+    N: int,
+    s_pos: (int, int),
+    s_speed: int,
+    m_pos: GamePosition,
+    m_type: int,
+):
+    redzone_area = [
+        (x, y)
+        for x in range(max(m_pos.x - m_type + 1, 0), min(m_pos.x + m_type, N))
+        for y in range(max(m_pos.y - m_type + 1, 0), min(m_pos.y + m_type, N))
+    ]
+    is_soldier_in_redzone = any([True for pos in redzone_area if pos == s_pos])
+    if not is_soldier_in_redzone:
+        return None
+    soldier_escape_locations = []
+    for i in range(0, s_speed + 1):
+        # top
+        if s_pos[1] + i < N:
+            soldier_escape_locations.append((s_pos[0], s_pos[1] + i))
+        # top-right
+        if s_pos[1] + i < N and s_pos[0] + i < N:
+            soldier_escape_locations.append((s_pos[0] + i, s_pos[1] + i))
+        # top-left
+        if s_pos[1] + i < N and s_pos[0] - i >= 0:
+            soldier_escape_locations.append((s_pos[0] - i, s_pos[1] + i))
+        # bottom
+        if s_pos[1] - i >= 0:
+            soldier_escape_locations.append((s_pos[0], s_pos[1] - i))
+        # bottom-right
+        if s_pos[1] - i >= 0 and s_pos[0] + i < N:
+            soldier_escape_locations.append((s_pos[0] + i, s_pos[1] - i))
+        # bottom-left
+        if s_pos[1] - i >= 0 and s_pos[0] - i >= 0:
+            soldier_escape_locations.append((s_pos[0] - i, s_pos[1] - i))
+        # left
+        if s_pos[0] - i >= 0:
+            soldier_escape_locations.append((s_pos[0] - i, s_pos[1]))
+        # right
+        if s_pos[0] + i < N:
+            soldier_escape_locations.append((s_pos[0] + i, s_pos[1]))
+    soldier_escape_locations = [pos for pos in soldier_escape_locations if pos not in redzone_area]
+    return soldier_escape_locations
+
+
 class Soldier:
     def stop_server(self):
         self.server.stop(10)
+
+    def initialize(self):
+        with grpc.insecure_channel(f"{self.host_ip}:{self.host_port}") as channel:
+            stub = rpc.BootstrapStub(channel)
+            self.N = stub.Initialize(BootstrapInit(ip=self.ip, port=self.port)).board_size  # important change
+            self.pos = generate_random_pos(self.N)
+            Console().clear()
+            print("Soldier Initialized")
 
     def __init__(self, s, ip, port) -> None:
         self.s = s
@@ -73,6 +126,39 @@ class Soldier:
             self.possible_locations = []
             self.is_hit = False
 
+        def MissileApproaching(self, request, context):
+            self.possible_locations = generate_shelter_locations(
+                self.outer_self.N,
+                self.outer_self.pos,
+                self.outer_self.s,
+                request.position,
+                request.missile_type,
+            )
+            if self.possible_locations is None:
+                return GamePosition(x=self.outer_self.pos[0], y=self.outer_self.pos[1])
+            if len(self.possible_locations) > 0:
+                self.outer_self.pos = self.possible_locations.pop(0)
+            else:
+                self.is_hit = True
+            return GamePosition(x=self.outer_self.pos[0], y=self.outer_self.pos[1])
+
+        def PositionStatus(self, request, context):
+            if request.is_occupied is False:
+                self.possible_locations = []
+                return GamePositionStatusReply(ready=GamePositionReady())
+            if self.is_hit is False and self.possible_locations is None:
+                self.outer_self.pos = generate_random_pos(self.outer_self.N)
+                return GamePositionStatusReply(
+                    position=GamePosition(x=self.outer_self.pos[0], y=self.outer_self.pos[1])
+                )
+            if self.is_hit is False and len(self.possible_locations) > 0:
+                self.outer_self.pos = self.possible_locations.pop(0)
+                return GamePositionStatusReply(
+                    position=GamePosition(x=self.outer_self.pos[0], y=self.outer_self.pos[1])
+                )
+            self.is_hit = True
+            return GamePositionStatusReply(ready=GamePositionReady())
+
         def Status(self, request, context):
             reply = GameSoldierWasHit(was_hit=self.is_hit)
             if self.is_hit:
@@ -97,6 +183,10 @@ class Soldier:
                     (soldier.pos.x, soldier.pos.y),
                 )
             self.outer_self.will_be_commander = True
+            self.outer_self.stop_server()
+            return Empty()
+
+        def GameOver(self, request, context):
             self.outer_self.stop_server()
             return Empty()
 
@@ -147,6 +237,37 @@ class Commander:
                 self.console.print("[#66ff66]Game ended. The battle is won.[/#66ff66]")
             else:
                 self.console.print("[#ff5566]Game ended. The battle is lost.[/#ff5566]")
+
+    def initialize(self, port):
+        self.serverclass = self.CommanderInitializer(self)
+        self.server = grpc.server(futures.ThreadPoolExecutor())
+        self.server.add_insecure_port(f"{get_ipv4_address()}:{port}")
+        rpc.add_BootstrapServicer_to_server(self.serverclass, self.server)
+        self.progress = Progress(
+            # SpinnerColumn('simpleDotsScrolling', '#ff5566', 2),
+            TextColumn("[#999999]{task.description}"),
+            BarColumn(pulse_style="#ffff55"),
+            TextColumn("[#eeee55]{task.completed}/{task.total}"),
+            transient=True,
+            refresh_per_second=30,
+        )
+        with self.progress:
+            self.task = self.progress.add_task("Waiting for clients ", total=self.M, start=False)
+            self.server.start()
+            self.server.wait_for_termination()
+        self.server = None
+        self.serverclass = None
+
+    def game_loop(self):
+        while self.current_time < self.T:
+            self.m_pos = generate_random_pos(self.N)
+            self.m_type = random.randint(1, 4)
+            self.missile_approaching(self.m_pos, self.t, self.m_type)
+            self.status_all()
+            self.check_and_transfer_self()
+            self.current_time += self.t
+            self.print_board()
+            sleep(1)
 
     # print the NxN board, with redzone, missile position, soldier location and commander location
     def print_board(self):
@@ -214,6 +335,17 @@ class Commander:
         grid.add_row(f"{self.current_time}/{self.T}", "", f"{len(self.soldiers.keys())}/{self.M}")
         self.console.print(grid)
 
+    def check_pos_if_free(self, pos):
+        if any(
+            [
+                True
+                for soldier in (self.soldiers | {"C": ("", "", self.pos)}).values()
+                if soldier[2][0] == pos.x and soldier[2][1] == pos.y
+            ]
+        ):
+            return False
+        return True
+
     def check_and_transfer_self(self):
         possible_locations = generate_shelter_locations(
             self.N,
@@ -261,6 +393,39 @@ class Commander:
         self.console.print("[#ff5566]Commander transferred.[/#ff5566]")
         raise Exception()
 
+    def game_over(self):
+        for soldier in self.soldiers.values():
+            with grpc.insecure_channel(f"{soldier[0]}:{soldier[1]}") as channel:
+                stub = rpc.GameStub(channel)
+                _ = stub.GameOver(Empty())
+
+    def missile_approaching(self, m_pos, t, m_type):
+        for soldier_id, soldier in self.soldiers.items():
+            with grpc.insecure_channel(f"{soldier[0]}:{soldier[1]}") as channel:
+                stub = rpc.GameStub(channel)
+                pos: GamePosition = stub.MissileApproaching(
+                    GameMissileApproaching(
+                        position=GamePosition(x=m_pos[0], y=m_pos[1]),
+                        time_to_approach=t,
+                        missile_type=m_type,
+                    )
+                )
+                while True:
+                    if (pos.x, pos.y) == soldier[2]:
+                        break
+                    if self.check_pos_if_free(pos):
+                        self.soldiers[soldier_id] = (
+                            self.soldiers[soldier_id][0],
+                            self.soldiers[soldier_id][1],
+                            (pos.x, pos.y),
+                        )
+                        _ = stub.PositionStatus(GamePositionStatus(is_occupied=False))
+                        break
+                    reply = stub.PositionStatus(GamePositionStatus(is_occupied=True))
+                    if reply.WhichOneof("status") == "ready":
+                        break
+                    pos = reply.position
+
     def status(self, soldier_id):
         with grpc.insecure_channel(f"{self.soldiers[soldier_id][0]}:{self.soldiers[soldier_id][1]}") as channel:
             stub = rpc.GameStub(channel)
@@ -276,6 +441,70 @@ class Commander:
     def stop_server(self):
         self.server.stop(10)
 
+    class CommanderInitializer(rpc.BootstrapServicer):
+        def __init__(self, outerself) -> None:
+            super().__init__()
+            self.outer_self = outerself
+
+        def Initialize(self, request, context):
+            self.outer_self.soldiers[len(self.outer_self.soldiers.keys()) + 1] = (
+                request.ip,
+                request.port,
+                (-1, -1),
+            )
+            self.outer_self.progress.update(self.outer_self.task, advance=1)
+            reply = BootstrapInitReply(board_size=self.outer_self.N)
+            if len(self.outer_self.soldiers.keys()) == self.outer_self.M:
+                self.outer_self.stop_server()
+            return reply
+
+
+def is_ip(string: str):
+    split_str = string.split(".")
+    if len(split_str) != 4:
+        return False
+    for sub in split_str[:3]:
+        if not (0 <= int(sub) < 256):
+            return False
+    if not (1 <= int(split_str[-1]) < 255):
+        return False
+    return True
+
+
+parser = argparse.ArgumentParser(description="Initialize soldier or commander")
+subparsers = parser.add_subparsers(required=True)
+
+parser_s = subparsers.add_parser("soldier")
+parser_s.add_argument("s", help="Speed of soldier (0-4 inclusive)", type=int)
+parser_s.add_argument("ip", help="IPv4 address of commander")
+parser_s.add_argument("port", help="Port number of commander", type=int)
+
+parser_c = subparsers.add_parser("commander")
+parser_c.add_argument("N", help="Size N of NxN matrix", type=int)
+parser_c.add_argument("M", help="Number of soldiers, excluding this unit (minimum 9)", type=int)
+parser_c.add_argument("t", help="Missiles will hit every t seconds", type=int)
+parser_c.add_argument("T", help="The game will run for T seconds", type=int)
+parser_c.add_argument("s", help="Speed of commander (0-4 inclusive)", type=int)
+parser_c.add_argument("port", help="Port number on which soldiers will connect", type=int)
+
+args = vars(parser.parse_args())
+
+if args["s"] < 0 or args["s"] > 4:
+    raise ValueError("Speed must be between 0 and 4, both inclusive")
+if args["port"] > 65535 or args["port"] < 1024:
+    raise ValueError("Port must be a valid number between 1024 to 65535, both inclusive")
+if "ip" in args:  # soldier
+    if not is_ip(args["ip"]):
+        raise ValueError("IP address must be a valid address between 0.0.0.1 and 255.255.255.254, both inclusive")
+else:  # commander
+    if args["N"] < 4:
+        raise ValueError("NxN matrix cannot be less than 4x4 in size")
+    if args["M"] < 1:
+        raise ValueError("Number of soldiers cannot be less than 9")
+    if args["T"] <= 0 or args["t"] <= 0:
+        raise ValueError("Time invalid")
+    if args["t"] > args["T"]:
+        raise ValueError("t cannot be greater than T")
 
 if "ip" in args:
     s = Soldier(args["s"], args["ip"], args["port"])
