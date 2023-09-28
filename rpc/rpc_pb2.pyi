@@ -1,6 +1,7 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -63,6 +64,34 @@ class GameSoldierWasHit(_message.Message):
     WAS_HIT_FIELD_NUMBER: _ClassVar[int]
     was_hit: bool
     def __init__(self, was_hit: bool = ...) -> None: ...
+
+class SoldierParams(_message.Message):
+    __slots__ = ["s_id", "ip", "port", "pos"]
+    S_ID_FIELD_NUMBER: _ClassVar[int]
+    IP_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    POS_FIELD_NUMBER: _ClassVar[int]
+    s_id: str
+    ip: str
+    port: int
+    pos: GamePosition
+    def __init__(self, s_id: _Optional[str] = ..., ip: _Optional[str] = ..., port: _Optional[int] = ..., pos: _Optional[_Union[GamePosition, _Mapping]] = ...) -> None: ...
+
+class CommanderParams(_message.Message):
+    __slots__ = ["M", "ct", "t", "T", "m", "soldiers"]
+    M_FIELD_NUMBER: _ClassVar[int]
+    CT_FIELD_NUMBER: _ClassVar[int]
+    T_FIELD_NUMBER: _ClassVar[int]
+    T_FIELD_NUMBER: _ClassVar[int]
+    M_FIELD_NUMBER: _ClassVar[int]
+    SOLDIERS_FIELD_NUMBER: _ClassVar[int]
+    M: int
+    ct: int
+    t: int
+    T: int
+    m: GameMissileApproaching
+    soldiers: _containers.RepeatedCompositeFieldContainer[SoldierParams]
+    def __init__(self, M: _Optional[int] = ..., ct: _Optional[int] = ..., t: _Optional[int] = ..., T: _Optional[int] = ..., m: _Optional[_Union[GameMissileApproaching, _Mapping]] = ..., soldiers: _Optional[_Iterable[_Union[SoldierParams, _Mapping]]] = ...) -> None: ...
 
 class Empty(_message.Message):
     __slots__ = []

@@ -1,2 +1,4 @@
 OS_Assignment_1.code-workspace
 .vscode/settings.json
+__pycache__
+test.py

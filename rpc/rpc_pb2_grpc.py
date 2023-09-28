@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import rpc_pb2 as rpc__pb2
+import rpc.rpc_pb2 as rpc__pb2
 
 
 class BootstrapStub(object):
@@ -19,23 +19,12 @@ class BootstrapStub(object):
                 request_serializer=rpc__pb2.BootstrapInit.SerializeToString,
                 response_deserializer=rpc__pb2.BootstrapInitReply.FromString,
                 )
-        self.GameOver = channel.unary_unary(
-                '/Bootstrap/GameOver',
-                request_serializer=rpc__pb2.Empty.SerializeToString,
-                response_deserializer=rpc__pb2.Empty.FromString,
-                )
 
 
 class BootstrapServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Initialize(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GameOver(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -48,11 +37,6 @@ def add_BootstrapServicer_to_server(servicer, server):
                     servicer.Initialize,
                     request_deserializer=rpc__pb2.BootstrapInit.FromString,
                     response_serializer=rpc__pb2.BootstrapInitReply.SerializeToString,
-            ),
-            'GameOver': grpc.unary_unary_rpc_method_handler(
-                    servicer.GameOver,
-                    request_deserializer=rpc__pb2.Empty.FromString,
-                    response_serializer=rpc__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -81,23 +65,6 @@ class Bootstrap(object):
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
-    @staticmethod
-    def GameOver(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Bootstrap/GameOver',
-            rpc__pb2.Empty.SerializeToString,
-            rpc__pb2.Empty.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
 
 class GameStub(object):
     """Missing associated documentation comment in .proto file."""
@@ -123,6 +90,16 @@ class GameStub(object):
                 request_serializer=rpc__pb2.GameSoldierStatus.SerializeToString,
                 response_deserializer=rpc__pb2.GameSoldierWasHit.FromString,
                 )
+        self.TransferCommander = channel.unary_unary(
+                '/Game/TransferCommander',
+                request_serializer=rpc__pb2.CommanderParams.SerializeToString,
+                response_deserializer=rpc__pb2.Empty.FromString,
+                )
+        self.GameOver = channel.unary_unary(
+                '/Game/GameOver',
+                request_serializer=rpc__pb2.Empty.SerializeToString,
+                response_deserializer=rpc__pb2.Empty.FromString,
+                )
 
 
 class GameServicer(object):
@@ -146,6 +123,18 @@ class GameServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def TransferCommander(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GameOver(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_GameServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -163,6 +152,16 @@ def add_GameServicer_to_server(servicer, server):
                     servicer.Status,
                     request_deserializer=rpc__pb2.GameSoldierStatus.FromString,
                     response_serializer=rpc__pb2.GameSoldierWasHit.SerializeToString,
+            ),
+            'TransferCommander': grpc.unary_unary_rpc_method_handler(
+                    servicer.TransferCommander,
+                    request_deserializer=rpc__pb2.CommanderParams.FromString,
+                    response_serializer=rpc__pb2.Empty.SerializeToString,
+            ),
+            'GameOver': grpc.unary_unary_rpc_method_handler(
+                    servicer.GameOver,
+                    request_deserializer=rpc__pb2.Empty.FromString,
+                    response_serializer=rpc__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -222,5 +221,39 @@ class Game(object):
         return grpc.experimental.unary_unary(request, target, '/Game/Status',
             rpc__pb2.GameSoldierStatus.SerializeToString,
             rpc__pb2.GameSoldierWasHit.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def TransferCommander(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Game/TransferCommander',
+            rpc__pb2.CommanderParams.SerializeToString,
+            rpc__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GameOver(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Game/GameOver',
+            rpc__pb2.Empty.SerializeToString,
+            rpc__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

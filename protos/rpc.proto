@@ -2,13 +2,14 @@ syntax = "proto3";
 
 service Bootstrap {
     rpc Initialize (BootstrapInit) returns (BootstrapInitReply);
-    rpc GameOver (Empty) returns (Empty);
 }
 
 service Game {
     rpc MissileApproaching (GameMissileApproaching) returns (GamePosition);
     rpc PositionStatus (GamePositionStatus) returns (GamePositionStatusReply);
     rpc Status (GameSoldierStatus) returns (GameSoldierWasHit);
+    rpc TransferCommander (CommanderParams) returns (Empty);
+    rpc GameOver (Empty) returns (Empty);
 }
 
 message BootstrapInit {
@@ -48,6 +49,22 @@ message GameSoldierStatus {}
 
 message GameSoldierWasHit {
     bool was_hit = 1;
+}
+
+message SoldierParams {
+    string s_id = 1;
+    string ip = 2;
+    int32 port = 3;
+    GamePosition pos = 4;
+}
+
+message CommanderParams {
+    int32 M = 1;
+    int32 ct = 2;
+    int32 t = 3;
+    int32 T = 4;
+    GameMissileApproaching m = 5;
+    repeated SoldierParams soldiers = 9;
 }
 
 message Empty {}
